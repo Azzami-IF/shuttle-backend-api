@@ -1,0 +1,13 @@
+PHP script to create directory and move file
+This is a temporary file to help with file organization.
+
+Use this to run:
+cd c:\Program1\Projects\Shuttle\Laravel
+php -r "
+if (!is_dir('app/Services')) {
+    mkdir('app/Services', 0755, true);
+}
+if (file_exists('app/Providers/CacheManager.php')) {
+    rename('app/Providers/CacheManager.php', 'app/Services/CacheManager.php');
+}
+"
