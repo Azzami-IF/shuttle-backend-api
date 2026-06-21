@@ -136,67 +136,81 @@ class DatabaseSeeder extends Seeder
             'tangerang' => ['name' => 'Terminal Poris Plawad', 'lat' => -6.1702, 'lng' => 106.6403],
         ];
 
-        foreach ($routesList as $index => $r) {
-            $vehicle = $vehiclesArray[$index % count($vehiclesArray)];
-            $driver = $driversArray[$index % count($driversArray)];
+        $baseRoutes = [
+            ['origin' => 'Depok', 'destination' => 'Bandung', 'price' => 125000, 'hour' => 8], // 08:00
+            ['origin' => 'Jakarta', 'destination' => 'Bandung', 'price' => 120000, 'hour' => 12], // 12:00
+            ['origin' => 'Bogor', 'destination' => 'Bandung', 'price' => 130000, 'hour' => 16], // 16:00
+        ];
+
+        // Seed for 7 days (today and next 6 days)
+        for ($dayOffset = 0; $dayOffset < 7; $dayOffset++) {
+            $targetDate = now()->addDays($dayOffset);
             
-            $originKey = strtolower(trim($r['origin']));
-            $destKey = strtolower(trim($r['destination']));
-            
-            $originDetails = $coordinatesMap[$originKey] ?? ['name' => 'Pool ' . $r['origin'], 'lat' => -6.4025, 'lng' => 106.8227];
-            $destDetails = $coordinatesMap[$destKey] ?? ['name' => 'Pool ' . $r['destination'], 'lat' => -6.9452, 'lng' => 107.5937];
-
-            $schedule = Schedule::create([
-                'vehicle_id' => $vehicle->id,
-                'driver_id' => $driver->id,
-                'origin' => $r['origin'],
-                'destination' => $r['destination'],
-                'departure_time' => now()->addHours($r['hours']),
-                'price' => $r['price'],
-                'pickup_name' => $originDetails['name'],
-                'pickup_lat' => $originDetails['lat'],
-                'pickup_lng' => $originDetails['lng'],
-                'drop_off_name' => $destDetails['name'],
-                'drop_off_lat' => $destDetails['lat'],
-                'drop_off_lng' => $destDetails['lng'],
-            ]);
-
-            // Seats for schedule
-            $seats = [];
-            for ($i = 1; $i <= $vehicle->capacity; $i++) {
-                $seat = Seat::create([
-                    'schedule_id' => $schedule->id,
-                    'seat_number' => (string)$i,
-                    'status' => 'available',
-                ]);
-                $seats[] = $seat;
-            }
-
-            // Trip for schedule
-            Trip::create([
-                'schedule_id' => $schedule->id,
-                'status' => 'scheduled',
-            ]);
-
-            // Buat booking tiket palsu (2-4 booking per jadwal) agar bus terisi penumpang
-            $numBookings = rand(2, 4);
-            $paymentCode = 'TRF' . strtoupper(bin2hex(random_bytes(4)));
-            $uniqueCode = rand(100, 999);
-            
-            $shuffledSeats = array_slice($seats, 0, $numBookings);
-            foreach ($shuffledSeats as $seatIndex => $seat) {
-                $customer = $customers[$seatIndex % count($customers)];
+            foreach ($baseRoutes as $rIndex => $r) {
+                // Determine driver and vehicle
+                $vehicle = $vehiclesArray[($dayOffset * 3 + $rIndex) % count($vehiclesArray)];
+                $driver = $driversArray[($dayOffset * 3 + $rIndex) % count($driversArray)];
                 
-                \App\Models\Booking::create([
-                    'user_id' => $customer->id,
-                    'schedule_id' => $schedule->id,
-                    'seat_id' => $seat->id,
-                    'status' => 'booked',
-                    'payment_code' => $paymentCode,
-                    'unique_code' => $uniqueCode,
+                $originKey = strtolower(trim($r['origin']));
+                $destKey = strtolower(trim($r['destination']));
+                
+                $originDetails = $coordinatesMap[$originKey] ?? ['name' => 'Pool ' . $r['origin'], 'lat' => -6.4025, 'lng' => 106.8227];
+                $destDetails = $coordinatesMap[$destKey] ?? ['name' => 'Pool ' . $r['destination'], 'lat' => -6.9452, 'lng' => 107.5937];
+                
+                $departureTime = $targetDate->copy()->setTime($r['hour'], 0, 0);
+
+                $schedule = Schedule::create([
+                    'vehicle_id' => $vehicle->id,
+                    'driver_id' => $driver->id,
+                    'origin' => $r['origin'],
+                    'destination' => $r['destination'],
+                    'departure_time' => $departureTime,
+                    'price' => $r['price'],
+                    'pickup_name' => $originDetails['name'],
+                    'pickup_lat' => $originDetails['lat'],
+                    'pickup_lng' => $originDetails['lng'],
+                    'drop_off_name' => $destDetails['name'],
+                    'drop_off_lat' => $destDetails['lat'],
+                    'drop_off_lng' => $destDetails['lng'],
                 ]);
 
-                $seat->update(['status' => 'booked']);
+                // Seats for schedule
+                $seats = [];
+                for ($i = 1; $i <= $vehicle->capacity; $i++) {
+                    $seat = Seat::create([
+                        'schedule_id' => $schedule->id,
+                        'seat_number' => (string)$i,
+                        'status' => 'available',
+                    ]);
+                    $seats[] = $seat;
+                }
+
+                // Trip for schedule
+                Trip::create([
+                    'schedule_id' => $schedule->id,
+                    'status' => 'scheduled',
+                ]);
+
+                // Buat booking tiket palsu (2-4 booking per jadwal) agar bus terisi penumpang
+                $numBookings = rand(2, 4);
+                $paymentCode = 'TRF' . strtoupper(bin2hex(random_bytes(4)));
+                $uniqueCode = rand(100, 999);
+                
+                $shuffledSeats = array_slice($seats, 0, $numBookings);
+                foreach ($shuffledSeats as $seatIndex => $seat) {
+                    $customer = $customers[$seatIndex % count($customers)];
+                    
+                    \App\Models\Booking::create([
+                        'user_id' => $customer->id,
+                        'schedule_id' => $schedule->id,
+                        'seat_id' => $seat->id,
+                        'status' => 'booked',
+                        'payment_code' => $paymentCode,
+                        'unique_code' => $uniqueCode,
+                    ]);
+
+                    $seat->update(['status' => 'booked']);
+                }
             }
         }
     }

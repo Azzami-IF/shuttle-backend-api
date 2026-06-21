@@ -312,6 +312,16 @@
         const sourceId = `planned-source-${tripId}`;
         const layerId = `planned-layer-${tripId}`;
         
+        const routeColors = [
+            '#1a73e8', // Google Maps Blue
+            '#10b981', // Emerald Green
+            '#8b5cf6', // Violet/Purple
+            '#f97316', // Orange
+            '#ec4899', // Pink
+            '#06b6d4'  // Cyan
+        ];
+        const color = routeColors[tripId % routeColors.length];
+        
         if (map.getSource(sourceId)) {
             map.getSource(sourceId).setData({
                 type: 'Feature',
@@ -343,7 +353,7 @@
                     'line-cap': 'round'
                 },
                 paint: {
-                    'line-color': '#1a73e8', // Solid Google Maps blue
+                    'line-color': color,
                     'line-width': 5,
                     'line-opacity': 0.8
                 }
