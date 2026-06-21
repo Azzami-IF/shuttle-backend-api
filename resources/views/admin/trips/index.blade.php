@@ -221,7 +221,7 @@
                         const existingTrip = activeTrips.find(t => t.id === trip.id);
                         if (existingTrip) {
                             existingTrip.status = trip.status;
-                            existingTrip.locations = trip.locations.map(loc => [loc.longitude, loc.latitude]);
+                            existingTrip.locations = trip.locations.map(loc => [loc[1], loc[0]]); // Swap [lat, lng] to [lng, lat]
                             tripDataMap[trip.id] = existingTrip;
                             
                             updateTripMarkerAndPath(existingTrip);
@@ -240,7 +240,7 @@
                                 drop_off_name: trip.drop_off_name || `Pool ${trip.destination}`,
                                 drop_off_lat: trip.drop_off_lat || -6.9175,
                                 drop_off_lng: trip.drop_off_lng || 107.6191,
-                                locations: trip.locations.map(loc => [loc.longitude, loc.latitude]),
+                                locations: trip.locations.map(loc => [loc[1], loc[0]]), // Swap [lat, lng] to [lng, lat]
                                 passengers: trip.passengers || []
                             };
                             activeTrips.push(newTrip);
@@ -376,9 +376,42 @@
         ]
     };
 
+    const adminCoordinatesMap = {
+        'jakarta': [106.8824, -6.3090],
+        'terminal kampung rambutan': [106.8824, -6.3090],
+        'bandung': [107.5937, -6.9452],
+        'terminal leuwi panjang': [107.5937, -6.9452],
+        'karawang': [107.2913, -6.3073],
+        'sumedang': [107.9234, -6.8524],
+        'subang': [107.7587, -6.5715],
+        'purwakarta': [107.4431, -6.5571],
+        'cikampek': [107.4589, -6.4025],
+        'cirebon': [108.5523, -6.7320],
+        'bogor': [106.7932, -6.5971],
+        'depok': [106.8227, -6.4025],
+        'bekasi': [106.9756, -6.2383],
+        'tangerang': [106.6403, -6.1702]
+    };
+
     function plotTrip(trip) {
-        const originCoords = [trip.pickup_lng, trip.pickup_lat];
-        const destCoords = [trip.drop_off_lng, trip.drop_off_lat];
+        // Resolve coordinates with fallback
+        let originCoords = [trip.pickup_lng, trip.pickup_lat];
+        if (!trip.pickup_lng || !trip.pickup_lat || (trip.pickup_lng === 106.8456 && trip.pickup_lat === -6.2088)) {
+            const key = trip.origin.toLowerCase().trim();
+            const mapped = adminCoordinatesMap[key];
+            if (mapped) {
+                originCoords = mapped;
+            }
+        }
+
+        let destCoords = [trip.drop_off_lng, trip.drop_off_lat];
+        if (!trip.drop_off_lng || !trip.drop_off_lat || (trip.drop_off_lng === 107.6191 && trip.drop_off_lat === -6.9175)) {
+            const key = trip.destination.toLowerCase().trim();
+            const mapped = adminCoordinatesMap[key];
+            if (mapped) {
+                destCoords = mapped;
+            }
+        }
 
         // Get intermediate stops
         const routeKey = `${trip.origin.toLowerCase().trim()}-${trip.destination.toLowerCase().trim()}`;
