@@ -343,27 +343,78 @@
                     'line-cap': 'round'
                 },
                 paint: {
-                    'line-color': '#94a3b8',
-                    'line-width': 3,
-                    'line-opacity': 0.5,
-                    'line-dasharray': [2, 2]
+                    'line-color': '#1a73e8', // Solid Google Maps blue
+                    'line-width': 5,
+                    'line-opacity': 0.8
                 }
             });
         }
     }
 
+    const adminRouteStops = {
+        'depok-bandung': [
+            { name: 'Pool Karawang', coords: [107.2913, -6.3073] },
+            { name: 'Pool Purwakarta', coords: [107.4431, -6.5571] }
+        ],
+        'bogor-bandung': [
+            { name: 'Pool Cianjur', coords: [107.1396, -6.8242] },
+            { name: 'Pool Padalarang', coords: [107.4721, -6.8406] }
+        ],
+        'jakarta-bandung': [
+            { name: 'Pool Bekasi', coords: [106.9756, -6.2383] },
+            { name: 'Pool Karawang', coords: [107.2913, -6.3073] }
+        ]
+    };
+
     function plotTrip(trip) {
         const originCoords = [trip.pickup_lng, trip.pickup_lat];
         const destCoords = [trip.drop_off_lng, trip.drop_off_lat];
 
-        // Draw planned route using OSRM
-        fetch(`https://router.project-osrm.org/route/v1/driving/${originCoords[0]},${originCoords[1]};${destCoords[0]},${destCoords[1]}?overview=full&geometries=geojson`)
+        // Get intermediate stops
+        const routeKey = `${trip.origin.toLowerCase().trim()}-${trip.destination.toLowerCase().trim()}`;
+        const stops = adminRouteStops[routeKey] || [];
+
+        // Plot intermediate stops on the map
+        stops.forEach((stop, sIdx) => {
+            const stopMarkerKey = `stop-${trip.id}-${sIdx}`;
+            const elStop = document.createElement('div');
+            elStop.className = 'route-marker-icon stop';
+            elStop.innerHTML = `<div style="background-color:#f59e0b; color:white; padding:4px 8px; border-radius:10px; font-weight:bold; font-size:9px; border:1px solid white; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                                    Singgah: ${stop.name}
+                                 </div>`;
+            new mapboxgl.Marker({ element: elStop })
+                .setLngLat(stop.coords)
+                .addTo(map);
+        });
+
+        // Construct multi-waypoint URL using Mapbox Directions API or OSRM
+        let waypointStr = `${originCoords[0]},${originCoords[1]}`;
+        stops.forEach(stop => {
+            waypointStr += `;${stop.coords[0]},${stop.coords[1]}`;
+        });
+        waypointStr += `;${destCoords[0]},${destCoords[1]}`;
+
+        // Draw planned route using Mapbox Directions API
+        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${waypointStr}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+        fetch(directionsUrl)
             .then(res => res.json())
             .then(data => {
                 if (data.routes && data.routes.length > 0) {
                     const coords = data.routes[0].geometry.coordinates;
                     drawPlannedRouteLine(trip.id, coords);
                 }
+            })
+            .catch(err => {
+                console.error("Mapbox Directions error, falling back to OSRM", err);
+                // Fallback to OSRM
+                fetch(`https://router.project-osrm.org/route/v1/driving/${waypointStr}?overview=full&geometries=geojson`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            const coords = data.routes[0].geometry.coordinates;
+                            drawPlannedRouteLine(trip.id, coords);
+                        }
+                    });
             });
 
         // Draw actual path traveled
@@ -376,7 +427,7 @@
             const elOrigin = document.createElement('div');
             elOrigin.className = 'route-marker-icon origin';
             elOrigin.innerHTML = `<div style="background-color:#0d9488; color:white; padding:4px 8px; border-radius:10px; font-weight:bold; font-size:10px; border:1px solid white; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
-                                     Mulai (#${trip.id}): ${trip.pickup_name}
+                                     Mulai (#${trip.id}): ${trip.pickup_name || trip.origin}
                                    </div>`;
             tripOriginMarkers[trip.id] = new mapboxgl.Marker({ element: elOrigin })
                 .setLngLat(originCoords)
@@ -388,7 +439,7 @@
             const elDest = document.createElement('div');
             elDest.className = 'route-marker-icon destination';
             elDest.innerHTML = `<div style="background-color:#b91c1c; color:white; padding:4px 8px; border-radius:10px; font-weight:bold; font-size:10px; border:1px solid white; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
-                                     Tujuan (#${trip.id}): ${trip.drop_off_name}
+                                     Tujuan (#${trip.id}): ${trip.drop_off_name || trip.destination}
                                    </div>`;
             tripDestMarkers[trip.id] = new mapboxgl.Marker({ element: elDest })
                 .setLngLat(destCoords)

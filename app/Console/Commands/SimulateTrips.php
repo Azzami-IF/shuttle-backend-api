@@ -93,10 +93,36 @@ class SimulateTrips extends Command
                     $destLat = $destCoords[0];
                     $destLng = $destCoords[1];
 
-                    // Coba ambil rute jalan raya dari OSRM
+                    // Coba ambil rute jalan raya dari OSRM (melewati Halte/Stops jika ada)
                     $routeCoords = [];
                     try {
-                        $url = "https://router.project-osrm.org/route/v1/driving/{$originLng},{$originLat};{$destLng},{$destLat}?overview=full&geometries=geojson";
+                        $routeStops = [
+                            'depok-bandung' => [
+                                [107.2913, -6.3073], // Pool Karawang [lng, lat]
+                                [107.4431, -6.5571]  // Pool Purwakarta [lng, lat]
+                            ],
+                            'bogor-bandung' => [
+                                [107.1396, -6.8242], // Pool Cianjur [lng, lat]
+                                [107.4721, -6.8406]  // Pool Padalarang [lng, lat]
+                            ],
+                            'jakarta-bandung' => [
+                                [106.9756, -6.2383], // Pool Bekasi [lng, lat]
+                                [107.2913, -6.3073]  // Pool Karawang [lng, lat]
+                            ]
+                        ];
+
+                        $routeKey = "{$originName}-{$destName}";
+                        $waypoints = [];
+                        $waypoints[] = "{$originLng},{$originLat}";
+                        if (isset($routeStops[$routeKey])) {
+                            foreach ($routeStops[$routeKey] as $stop) {
+                                $waypoints[] = "{$stop[0]},{$stop[1]}";
+                            }
+                        }
+                        $waypoints[] = "{$destLng},{$destLat}";
+                        $waypointStr = implode(';', $waypoints);
+
+                        $url = "https://router.project-osrm.org/route/v1/driving/{$waypointStr}?overview=full&geometries=geojson";
                         $ctx = stream_context_create([
                             "http" => [
                                 "header" => "User-Agent: ShuttleAppSimulation/1.0\r\n",

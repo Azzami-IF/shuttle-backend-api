@@ -19,12 +19,12 @@ class AdminController extends Controller
             'vehicles' => Vehicle::count(),
             'schedules' => Schedule::count(),
             'bookings' => Booking::count(),
-            'active_trips' => Trip::where('status', 'on-going')->count(),
+            'active_trips' => Trip::whereIn('status', ['boarding', 'on-going', 'delayed', 'arrived'])->count(),
             'drivers' => User::where('role', 'driver')->count(),
         ];
 
         $recent_bookings = Booking::with(['user', 'schedule'])->latest()->take(5)->get();
-        $active_trips = Trip::with(['schedule.vehicle', 'schedule.driver'])->where('status', 'on-going')->get();
+        $active_trips = Trip::with(['schedule.vehicle', 'schedule.driver', 'schedule.bookings.user'])->whereIn('status', ['boarding', 'on-going', 'delayed', 'arrived'])->get();
 
         // Chart Data: Bookings in last 7 days
         $booking_stats = Booking::select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as total'))
@@ -331,7 +331,13 @@ class AdminController extends Controller
     // Trip Monitoring
     public function trips(Request $request)
     {
-        $query = Trip::with(['schedule.vehicle', 'schedule.driver', 'locations']);
+        $query = Trip::with([
+            'schedule.vehicle',
+            'schedule.driver',
+            'schedule.bookings.user',
+            'schedule.bookings.seat',
+            'locations'
+        ]);
 
         if ($request->has('status') && $request->get('status') != '') {
             $query->where('status', $request->get('status'));
@@ -339,5 +345,89 @@ class AdminController extends Controller
 
         $trips = $query->latest()->get();
         return view('admin.trips.index', compact('trips'));
+    }
+
+    public function editSchedule(Schedule $schedule)
+    {
+        $vehicles = Vehicle::all();
+        $drivers = User::where('role', 'driver')->get();
+        return view('admin.schedules.edit', compact('schedule', 'vehicles', 'drivers'));
+    }
+
+    public function updateSchedule(Request $request, Schedule $schedule)
+    {
+        $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'driver_id' => 'required|exists:users,id',
+            'origin' => 'required',
+            'destination' => 'required',
+            'departure_time' => 'required|date',
+        ]);
+
+        $vehicle = Vehicle::find($request->vehicle_id);
+        $oldVehicleId = $schedule->vehicle_id;
+
+        // Check if there are bookings before changing vehicle capacity/type
+        if ($oldVehicleId != $vehicle->id) {
+            $hasBookings = Booking::where('schedule_id', $schedule->id)->where('status', '!=', 'cancelled')->exists();
+            if ($hasBookings) {
+                return redirect()->back()->withErrors(['vehicle_id' => 'Cannot change vehicle because this schedule already has active bookings.']);
+            }
+
+            // Recreate seats if no active bookings exist
+            Seat::where('schedule_id', $schedule->id)->delete();
+            for ($i = 1; $i <= $vehicle->capacity; $i++) {
+                Seat::create([
+                    'schedule_id' => $schedule->id,
+                    'seat_number' => (string)$i,
+                    'status' => 'available',
+                ]);
+            }
+        }
+
+        $schedule->update($request->all());
+
+        return redirect()->route('admin.schedules')->with('success', 'Schedule updated successfully');
+    }
+
+    public function activeTripsLocations(Request $request)
+    {
+        $trips = Trip::with([
+            'schedule.vehicle',
+            'schedule.driver',
+            'schedule.bookings' => function($q) {
+                $q->where('status', '!=', 'cancelled')->with(['user', 'seat']);
+            },
+            'locations'
+        ])->whereIn('status', ['boarding', 'on-going', 'delayed', 'arrived'])->get();
+
+        $data = $trips->map(function ($t) {
+            return [
+                'id' => $t->id,
+                'origin' => $t->schedule?->origin,
+                'destination' => $t->schedule?->destination,
+                'pickup_name' => $t->schedule?->pickup_name,
+                'pickup_lat' => $t->schedule?->pickup_lat,
+                'pickup_lng' => $t->schedule?->pickup_lng,
+                'drop_off_name' => $t->schedule?->drop_off_name,
+                'drop_off_lat' => $t->schedule?->drop_off_lat,
+                'drop_off_lng' => $t->schedule?->drop_off_lng,
+                'driver' => $t->schedule?->driver?->name ?? 'Driver',
+                'vehicle' => $t->schedule?->vehicle?->license_plate ?? '',
+                'status' => $t->status,
+                'locations' => $t->locations->map(function ($loc) {
+                    return [$loc->latitude, $loc->longitude];
+                })->toArray(),
+                'passengers' => $t->schedule->bookings->map(function ($booking) {
+                    return [
+                        'name' => $booking->user?->name ?? 'User',
+                        'seat' => $booking->seat?->seat_number ?? $booking->seat_id,
+                        'phone' => $booking->user?->phone ?? '',
+                    ];
+                })->toArray()
+            ];
+        });
+
+        return response()->json($data);
     }
 }
