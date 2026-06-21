@@ -15,8 +15,8 @@ class TrackingController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($trip->status !== 'on-going') {
-            return response()->json(['message' => 'Trip not in progress'], 422);
+        if ($trip->status === 'scheduled' || $trip->status === 'completed') {
+            return response()->json(['message' => 'Trip not active'], 422);
         }
 
         $request->validate([
@@ -29,6 +29,24 @@ class TrackingController extends Controller
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
         ]);
+
+        // Broadcast real-time location update to passengers and admins
+        $schedule = $trip->schedule;
+        $vehicleInfo = [];
+        if ($schedule) {
+            $vehicleInfo = [
+                'plate_number' => $schedule->vehicle->license_plate ?? 'Unknown',
+                'driver_name' => $schedule->driver->name ?? 'Unknown',
+            ];
+        }
+
+        broadcast(new \App\Events\DriverLocationUpdated(
+            (int) $schedule->id,
+            (float) $request->latitude,
+            (float) $request->longitude,
+            $location->created_at->toIso8601String(),
+            $vehicleInfo
+        ))->toOthers();
 
         return response()->json($location, 201);
     }

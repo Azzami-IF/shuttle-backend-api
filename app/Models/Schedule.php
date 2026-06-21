@@ -15,7 +15,13 @@ class Schedule extends Model
         'origin',
         'destination',
         'departure_time',
-        'price'
+        'price',
+        'pickup_name',
+        'pickup_lat',
+        'pickup_lng',
+        'drop_off_name',
+        'drop_off_lat',
+        'drop_off_lng'
     ];
 
     public function vehicle(): BelongsTo

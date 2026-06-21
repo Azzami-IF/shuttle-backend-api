@@ -21,6 +21,113 @@ Route::get('/payment-info', function() {
 // Stripe Webhook (public, no authentication required)
 Route::post('/webhooks/stripe', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
+// Database Seeding Helper for cPanel
+Route::get('/seed-database', function() {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('db:seed');
+        return response()->json(['message' => 'Seeding completed successfully!']);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
+// Cache Clearing Helper for cPanel
+Route::get('/clear-cache', function() {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        return response()->json([
+            'message' => 'Cache cleared successfully!',
+            'output' => \Illuminate\Support\Facades\Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
+// Database Migration Helper for cPanel
+Route::get('/run-migration', function() {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        return response()->json([
+            'message' => 'Migration and Config Clear completed successfully!',
+            'output' => \Illuminate\Support\Facades\Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
+// Debug helper for simulation on cPanel
+Route::get('/debug-simulation', function(\Illuminate\Http\Request $request) {
+    if ($request->query('token') !== 'sec-secret-123') {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
+    
+    $action = $request->query('action');
+    
+    if ($action === 'status') {
+        $trips = \App\Models\Trip::with('schedule')->get();
+        $bookings = \App\Models\Booking::with(['user', 'schedule'])->get();
+        return response()->json([
+            'trips' => $trips,
+            'bookings' => $bookings
+        ]);
+    }
+    
+    if ($action === 'simulate') {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('trips:simulate', [
+                '--duration' => 5,
+                '--interval' => 1
+            ]);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+            return response()->json([
+                'success' => true,
+                'output' => $output
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    if ($action === 'schedule') {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('schedule:run');
+            $output = \Illuminate\Support\Facades\Artisan::output();
+            return response()->json([
+                'success' => true,
+                'output' => $output
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    if ($action === 'logs') {
+        $logPath = storage_path('logs/laravel.log');
+        if (file_exists($logPath)) {
+            $logs = file_get_contents($logPath);
+            $lines = explode("\n", $logs);
+            $lastLines = array_slice($lines, -200);
+            return response()->json([
+                'logs' => implode("\n", $lastLines)
+            ]);
+        } else {
+            return response()->json(['error' => 'Log file not found'], 404);
+        }
+    }
+    
+    return response()->json(['message' => 'Use action=status, action=simulate, action=schedule, or action=logs']);
+});
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/profile/update', [AuthController::class, 'updateProfile']);
