@@ -100,9 +100,17 @@ foreach ($tables as $table) {
 
         $batch = 0;
         $sourceConn->table($table)->orderBy('rowid')->chunk(500, function($rows) use ($targetConn, $table, &$batch) {
-            $inserts = array_map(function($r){ return (array)$r; }, $rows);
-            // insert into target
-            $targetConn->table($table)->insert($inserts);
+            // $rows is a Collection; convert to array of arrays for insert
+            $arr = $rows->toArray();
+            $inserts = array_map(function($r){ return (array)$r; }, $arr);
+            if (!empty($inserts)) {
+                try {
+                    // prefer insertOrIgnore to avoid duplicate-key interrupts
+                    $targetConn->table($table)->insertOrIgnore($inserts);
+                } catch (Throwable $_) {
+                    $targetConn->table($table)->insert($inserts);
+                }
+            }
             $batch++;
             echo ".";
             flush();
