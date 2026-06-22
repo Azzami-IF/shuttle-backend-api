@@ -34,7 +34,10 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    
+    'mapbox' => [
+        'access_token' => env('MAPBOX_ACCESS_TOKEN', ''),
+    ],
     
 
 ];
