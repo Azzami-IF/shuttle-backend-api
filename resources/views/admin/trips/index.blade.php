@@ -134,7 +134,7 @@
     const tripDestMarkers = {};
 
     document.addEventListener("DOMContentLoaded", function() {
-        mapboxgl.accessToken = '{{ env('MAPBOX_ACCESS_TOKEN') }}';
+        mapboxgl.accessToken = {!! json_encode(env('MAPBOX_ACCESS_TOKEN')) !!};
 
         // Initialize Mapbox map
         map = new mapboxgl.Map({
