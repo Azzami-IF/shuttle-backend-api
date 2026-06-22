@@ -73,10 +73,10 @@
                         @foreach($active_trips as $trip)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-4">
-                                <p class="font-bold text-sm text-primary">{{ $trip->schedule->origin }} → {{ $trip->schedule->destination }}</p>
-                                <p class="text-xs text-on-surface-variant">{{ $trip->schedule->vehicle->name }}</p>
+                                <p class="font-bold text-sm text-primary">{{ optional($trip->schedule)->origin ?? '-' }} → {{ optional($trip->schedule)->destination ?? '-' }}</p>
+                                <p class="text-xs text-on-surface-variant">{{ optional(optional($trip->schedule)->vehicle)->name ?? '-' }}</p>
                             </td>
-                            <td class="px-4 py-4 text-sm text-on-surface-variant">{{ $trip->schedule->driver->name }}</td>
+                            <td class="px-4 py-4 text-sm text-on-surface-variant">{{ optional(optional($trip->schedule)->driver)->name ?? '-' }}</td>
                             <td class="px-4 py-4">
                                 <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full font-bold uppercase">{{ $trip->status }}</span>
                             </td>
@@ -94,13 +94,13 @@
             <h2 class="text-xl font-bold text-primary mb-6">Booking Terbaru</h2>
             <div class="space-y-6">
                 @foreach($recent_bookings as $booking)
-                <div class="flex gap-4">
+                        <div class="flex gap-4">
                     <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                         <span class="material-symbols-outlined text-sm">person</span>
                     </div>
-                    <div class="flex-1">
-                        <p class="font-bold text-primary text-sm">{{ $booking->user->name }}</p>
-                        <p class="text-xs text-on-surface-variant">{{ $booking->schedule->origin }} → {{ $booking->schedule->destination }}</p>
+                        <div class="flex-1">
+                        <p class="font-bold text-primary text-sm">{{ optional($booking->user)->name ?? '-' }}</p>
+                        <p class="text-xs text-on-surface-variant">{{ optional($booking->schedule)->origin ?? '-' }} → {{ optional($booking->schedule)->destination ?? '-' }}</p>
                         <div class="mt-1 text-[10px] text-secondary font-bold uppercase">Berhasil</div>
                     </div>
                 </div>
