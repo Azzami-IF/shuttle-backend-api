@@ -27,7 +27,7 @@ class InvoiceService
                 'booking_id' => $bookingId,
                 'user_id' => $booking->user_id,
                 'invoice_number' => 'INV-' . date('Ym') . '-' . str_pad($booking->id, 5, '0', STR_PAD_LEFT),
-                'amount' => $booking->schedule->price ?? 50000,
+                'amount' => optional($booking->schedule)->price ?? 50000,
                 'status' => 'issued',
                 'issued_at' => now(),
             ]);
@@ -48,8 +48,12 @@ class InvoiceService
         try {
             $invoice = Invoice::with(['booking.user', 'booking.schedule', 'user'])->findOrFail($invoiceId);
             
-            Mail::to($invoice->user->email)
-                ->send(new InvoiceMail($invoice));
+            if ($invoice->user && $invoice->user->email) {
+                Mail::to($invoice->user->email)
+                    ->send(new InvoiceMail($invoice));
+            } else {
+                Log::warning('Invoice email skipped: missing user email for invoice '.$invoiceId);
+            }
                 
             $invoice->update(['emailed_at' => now()]);
             

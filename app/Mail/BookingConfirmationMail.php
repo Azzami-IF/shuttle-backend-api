@@ -17,9 +17,9 @@ class BookingConfirmationMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $origin = $this->booking->schedule->origin ?? 'Origin';
-        $destination = $this->booking->schedule->destination ?? 'Destination';
-        
+        $origin = optional($this->booking->schedule)->origin ?? 'Origin';
+        $destination = optional($this->booking->schedule)->destination ?? 'Destination';
+
         return new Envelope(
             subject: "Booking Confirmation - $origin to $destination",
         );
@@ -31,7 +31,7 @@ class BookingConfirmationMail extends Mailable
             view: 'emails.booking-confirmation',
             with: [
                 'booking' => $this->booking,
-                'schedule' => $this->booking->schedule,
+                'schedule' => optional($this->booking->schedule),
             ],
         );
     }

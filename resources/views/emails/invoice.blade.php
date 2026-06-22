@@ -93,7 +93,7 @@
             </div>
             <div class="invoice-details">
                 <div class="invoice-number">{{ $invoice->invoice_number }}</div>
-                <div>Issue Date: {{ $invoice->issued_at->format('F d, Y') }}</div>
+                <div>Issue Date: {{ optional($invoice->issued_at)->format('F d, Y') }}</div>
                 <div>Status: <strong>{{ ucfirst($invoice->status) }}</strong></div>
             </div>
         </div>
@@ -101,10 +101,10 @@
         <div class="customer-info">
             <h3>Bill To:</h3>
             <p>
-                <strong>{{ $invoice->user->name }}</strong><br>
-                {{ $invoice->user->email }}<br>
-                @if($invoice->user->phone)
-                    {{ $invoice->user->phone }}<br>
+                <strong>{{ optional($invoice->user)->name ?? 'Customer' }}</strong><br>
+                {{ optional($invoice->user)->email ?? '' }}<br>
+                @if(optional($invoice->user)->phone)
+                    {{ optional($invoice->user)->phone }}<br>
                 @endif
             </p>
         </div>
