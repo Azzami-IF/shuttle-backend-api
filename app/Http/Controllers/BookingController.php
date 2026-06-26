@@ -44,7 +44,7 @@ class BookingController extends Controller
 
     private function bookingAccessAllowed(Request $request, Booking $booking): bool
     {
-        if ($request->user()->id === $booking->user_id || $request->user()->role === 'admin') {
+        if ($request->user()->id == $booking->user_id || $request->user()->role === 'admin') {
             return true;
         }
 
@@ -147,7 +147,7 @@ class BookingController extends Controller
 
     public function cancel(Request $request, Booking $booking)
     {
-        if ($request->user()->id !== $booking->user_id && $request->user()->role !== 'admin') {
+        if ($request->user()->id != $booking->user_id && $request->user()->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

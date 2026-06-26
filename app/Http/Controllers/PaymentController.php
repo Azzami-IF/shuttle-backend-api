@@ -19,7 +19,7 @@ class PaymentController extends Controller
             $booking = Booking::with('schedule')->findOrFail($bookingId);
             
             // Check if user is owner
-            if ($booking->user_id !== $request->user()->id) {
+            if ($booking->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -54,7 +54,7 @@ class PaymentController extends Controller
 
             $booking = Booking::findOrFail($bookingId);
             
-            if ($booking->user_id !== $request->user()->id) {
+            if ($booking->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -91,7 +91,7 @@ class PaymentController extends Controller
         try {
             $booking = Booking::with('payment')->findOrFail($bookingId);
             
-            if ($booking->user_id !== $request->user()->id) {
+            if ($booking->user_id != $request->user()->id) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
