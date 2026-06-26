@@ -42,9 +42,19 @@ class BookingController extends Controller
         return response()->json($query->get());
     }
 
+    private function bookingAccessAllowed(Request $request, Booking $booking): bool
+    {
+        if ($request->user()->id === $booking->user_id || $request->user()->role === 'admin') {
+            return true;
+        }
+
+        $paymentCode = $request->query('payment_code');
+        return $paymentCode && $paymentCode === $booking->payment_code;
+    }
+
     public function store(Request $request)
     {
-        $request->validate([
+        $request->validate([ 
             'schedule_id' => 'required|exists:schedules,id',
             'seat_ids' => 'required|array',
             'seat_ids.*' => 'exists:seats,id',
@@ -110,7 +120,7 @@ class BookingController extends Controller
 
     public function confirmPayment(Request $request, Booking $booking)
     {
-        if ($request->user()->id !== $booking->user_id && $request->user()->role !== 'admin') {
+        if (!$this->bookingAccessAllowed($request, $booking)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -128,11 +138,8 @@ class BookingController extends Controller
 
     public function show(Request $request, Booking $booking)
     {
-        if ($request->user()->id !== $booking->user_id && $request->user()->role !== 'admin') {
-            $paymentCode = $request->query('payment_code');
-            if (!$paymentCode || $paymentCode !== $booking->payment_code) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+        if (!$this->bookingAccessAllowed($request, $booking)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         return response()->json($booking->load(['user', 'schedule', 'seat']));
@@ -177,7 +184,7 @@ class BookingController extends Controller
 
     public function uploadProof(Request $request, Booking $booking)
     {
-        if ($request->user()->id !== $booking->user_id) {
+        if (!$this->bookingAccessAllowed($request, $booking)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
