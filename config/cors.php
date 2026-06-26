@@ -22,6 +22,8 @@ return [
     'allowed_origins' => [
         'https://ambatu.my.id',
         'https://www.ambatu.my.id',
+        'http://kemanapungo.ambatu.my.id',
+        'https://kemanapungo.ambatu.my.id',
         'http://localhost:3000',
         'http://localhost:8100',
         'http://localhost:4200',
