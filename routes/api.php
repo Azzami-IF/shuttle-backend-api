@@ -21,6 +21,19 @@ Route::get('/payment-info', function() {
 // Stripe Webhook (public, no authentication required)
 Route::post('/webhooks/stripe', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 
+// Public schedules routes
+Route::get('schedules', [\App\Http\Controllers\ScheduleController::class, 'index']);
+Route::get('schedules/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'show']);
+Route::get('schedules/{schedule}/seats', [\App\Http\Controllers\ScheduleController::class, 'seats']);
+
+// Public payment details lookup by payment code
+Route::get('payment/bookings/{paymentCode}', [\App\Http\Controllers\BookingController::class, 'showByPaymentCode']);
+
+// DompetX public webhooks and simulator mock pages
+Route::post('webhooks/dompetx', [\App\Http\Controllers\PaymentController::class, 'dompetxWebhook']);
+Route::get('dompetx-mock/checkout', [\App\Http\Controllers\PaymentController::class, 'mockCheckoutView'])->name('dompetx.mock-checkout');
+Route::post('dompetx-mock/pay', [\App\Http\Controllers\PaymentController::class, 'mockCheckoutPay'])->name('dompetx.mock-pay');
+
 // Database Seeding Helper for cPanel
 Route::get('/seed-database', function() {
     try {
@@ -136,9 +149,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Read operations - 120 per minute
     Route::middleware('throttle:120,1')->group(function () {
-        Route::get('schedules', [\App\Http\Controllers\ScheduleController::class, 'index']);
-        Route::get('schedules/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'show']);
-        Route::get('schedules/{schedule}/seats', [\App\Http\Controllers\ScheduleController::class, 'seats']);
         Route::get('bookings', [\App\Http\Controllers\BookingController::class, 'index']);
         Route::get('bookings/{booking}', [\App\Http\Controllers\BookingController::class, 'show']);
         Route::get('trips', [\App\Http\Controllers\TripController::class, 'index']);
@@ -168,6 +178,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('invoices/{invoiceId}', [\App\Http\Controllers\InvoiceController::class, 'show']);
         Route::get('invoices', [\App\Http\Controllers\InvoiceController::class, 'getUserInvoices']);
         Route::post('invoices/{invoiceId}/send-email', [\App\Http\Controllers\InvoiceController::class, 'sendEmail']);
+
+        // DompetX Checkout (authenticated)
+        Route::post('payments/dompetx/checkout/{bookingId}', [\App\Http\Controllers\PaymentController::class, 'createDompetXCheckout']);
     });
 
     // Tracking/Location updates - 300 per minute

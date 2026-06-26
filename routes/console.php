@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('schedules:generate --days=30')->dailyAt('00:00');
+Schedule::command('trips:simulate --duration=55 --interval=5')->everyMinute()->withoutOverlapping();

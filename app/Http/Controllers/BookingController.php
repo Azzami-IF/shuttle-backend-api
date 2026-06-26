@@ -145,6 +145,27 @@ class BookingController extends Controller
         return response()->json($booking->load(['user', 'schedule', 'seat']));
     }
 
+    public function showByPaymentCode(string $paymentCode)
+    {
+        $bookings = Booking::with(['user', 'schedule', 'seat'])
+            ->where('payment_code', $paymentCode)
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            return response()->json(['message' => 'Payment booking not found'], 404);
+        }
+
+        $totalPrice = $bookings->sum(function ($booking) {
+            return $booking->schedule?->price ?? 0;
+        });
+
+        return response()->json([
+            'payment_code' => $paymentCode,
+            'total_price' => $totalPrice,
+            'bookings' => $bookings,
+        ]);
+    }
+
     public function cancel(Request $request, Booking $booking)
     {
         if ($request->user()->id != $booking->user_id && $request->user()->role !== 'admin') {
